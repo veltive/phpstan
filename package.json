@@ -1,0 +1,76 @@
+{
+  "name": "phpstan",
+  "displayName": "Phpstan",
+  "description": "Phpstan inline for VS Code. This extension is still in development.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "phpstan-inline.analyze",
+        "title": "PHPStan: Analyze"
+      }
+    ],
+    "configuration": {
+        "type": "object",
+        "title": "PHPStan Settings",
+        "properties": {
+          "phpstan.binaryPath": {
+            "type": "string",
+            "default": "phpstan",
+            "description": "Path to the PHPStan binary"
+          },
+          "phpstan.config": {
+            "type": "string",
+            "default": "",
+            "description": "Path to phpstan.neon config file"
+          },
+          "phpstan.args": {
+            "type": "string",
+            "default": "",
+            "description": "Extra arguments to pass to PHPStan"
+          },
+          "phpstan.errorFormat": {
+            "type": "string",
+            "default": "json",
+            "enum": ["json", "table", "raw", "checkstyle", "github", "gitlab", "teamcity"],
+            "description": "Output format for PHPStan errors"
+          },
+          "phpstan.command": {
+            "type": "string",
+            "default": "",
+            "description": "Custom command to run PHPStan (overrides all other settings)"
+          }
+        }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn run compile",
+    "build": "tsc --build",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "yarn run compile && yarn run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.99.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
