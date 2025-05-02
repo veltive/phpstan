@@ -28,21 +28,20 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
     const command = config.get<string>('command') || `${binaryPath} analyse ${doc.fileName} --error-format=${errorFormat} ${configPath ? '--configuration ' + configPath : ''} ${extraArgs}`;
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
+    spinner.show();
+    spinner.text = `${spinnerLabel} Analyzing 🔍`;
+    outputChannel.clear();
+    outputChannel.appendLine(`[PHPStan] Analyzing: ${doc.fileName} 🔍`);
+
     cp.exec(command, { cwd: workspaceFolder }, (err, stdout, stderr) => {
-        spinner.show();
-        spinner.text = `${spinnerLabel} Analyzing 🔍`;
-
-        outputChannel.clear();
-        outputChannel.appendLine(`[PHPStan] Analyzing: ${doc.fileName}`);
-        diagnostics.clear();
-
         if (err && stdout) {
             try {
                 const results = JSON.parse(stdout);
                 const fileDiagnostics: vscode.Diagnostic[] = [];
 
                 const fileMessages = results.files?.[doc.fileName]?.messages ?? [];
-                outputChannel.appendLine(`[PHPStan] Found ${fileMessages.length} messages`);
+                outputChannel.appendLine(`[PHPStan] Found ${fileMessages.length} messages ` + (fileMessages.length === 0 ? '✅' : '❌'));
+                diagnostics.clear();
 
                 fileMessages.forEach((msg: any) => {
                     const range = new vscode.Range(
@@ -55,6 +54,7 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
                         : vscode.DiagnosticSeverity.Error;
 
                     const diagnostic = new vscode.Diagnostic(range, msg.message, severity);
+
                     diagnostic.source = 'PHPStan';
                     if (msg.identifier) diagnostic.code = msg.identifier;
 
@@ -63,7 +63,7 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
 
                 diagnostics.set(doc.uri, fileDiagnostics);
             } catch (e) {
-                outputChannel.appendLine('[PHPStan] Failed to parse JSON output');
+                outputChannel.appendLine('[PHPStan] Failed to parse JSON output ⚠️');
                 outputChannel.appendLine(`Error: ${(e as Error).message}`);
                 outputChannel.appendLine(`Stdout: ${stdout}`);
                 outputChannel.appendLine(`Stderr: ${stderr}`);
@@ -72,7 +72,7 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
             outputChannel.appendLine(`[PHPStan] Error (no stdout): ${err.message}`);
             outputChannel.appendLine(`Stderr: ${stderr}`);
         } else {
-            outputChannel.appendLine('[PHPStan] No errors found.');
+            outputChannel.appendLine('[PHPStan] No errors found ✅');
         }
 
         setTimeout(() => {
