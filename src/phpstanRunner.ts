@@ -88,7 +88,10 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
                     const diagnostic = new vscode.Diagnostic(range, msg.message, severity);
 
                     diagnostic.source = 'PHPStan';
-                    if (msg.identifier) diagnostic.code = msg.identifier;
+
+                    if (msg.identifier) {
+                        diagnostic.code = msg.identifier;
+                    }
 
                     fileDiagnostics.push(diagnostic);
                 });
@@ -122,4 +125,15 @@ export function markFileAsModified(fileName: string) {
         lintedFile.lastModified = Date.now();
         lintedFiles.set(fileName, lintedFile);
     }
+}
+
+// Add this function to register the document change event
+export function registerDocumentChangeListener(context: vscode.ExtensionContext) {
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(event => {
+            if (event.document.languageId === 'php') {
+                markFileAsModified(event.document.fileName);
+            }
+        })
+    );
 }

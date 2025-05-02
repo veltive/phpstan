@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { runPhpStan, markFileAsModified } from './phpstanRunner';
+import { runPhpStan, markFileAsModified, registerDocumentChangeListener } from './phpstanRunner';
 
 export function activate(context: vscode.ExtensionContext) {
     // Create a status bar item with a spinner
@@ -84,12 +84,6 @@ export function activate(context: vscode.ExtensionContext) {
         return true;
     }
 
-    // Add this to your activate function, after the other event subscriptions
-    context.subscriptions.push(
-        vscode.workspace.onDidChangeTextDocument(event => {
-            if (event.document.languageId === 'php') {
-                markFileAsModified(event.document.fileName);
-            }
-        })
-    );
+    // Register the document change listener
+    registerDocumentChangeListener(context);
 }
