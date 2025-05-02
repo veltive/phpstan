@@ -1,68 +1,53 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import { LintedFiles } from './lintedFiles';
 
 const outputChannel = vscode.window.createOutputChannel('PHPStan');
 const spinnerLabel = "$(sync~spin) PHPStan:";
 
-// Track the last analyzed file to prevent duplicate runs
-let lastAnalyzedFile: string | null = null;
-let lastAnalyzedTime: number = 0;
-
-// Track linted files and their modification status
-interface LintedFile {
-    fileName: string;
-    lastLinted: number;
-    lastModified: number;
-}
-const lintedFiles: Map<string, LintedFile> = new Map();
+LintedFiles.initialize(outputChannel);
 
 export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocument, diagnostics: vscode.DiagnosticCollection, config: vscode.WorkspaceConfiguration, trigger: String | null = null) {
     const currentTime = Date.now();
     const fileName = doc.fileName;
 
-    // Skip if this is the same file and was analyzed less than 3 seconds ago
-    if (lastAnalyzedFile === fileName && currentTime - lastAnalyzedTime < 3000) {
+    // Use LintedFiles class to manage file tracking
+    if (LintedFiles.shouldSkipAnalysis(fileName, currentTime, trigger)) {
         return;
     }
 
-    // Check if file was already linted and hasn't been modified since
-    const lintedFile = lintedFiles.get(fileName);
-    if (lintedFile && trigger === 'Changed active editor') {
-        // Only skip if the file hasn't been modified since last lint
-        if (lintedFile.lastModified <= lintedFile.lastLinted) {
-            outputChannel.appendLine(`[PHPStan] Skipping analysis of ${fileName} (already linted and not modified)`);
-            return;
-        }
+    // Update tracking in LintedFiles
+    LintedFiles.updateTracking(fileName, currentTime, doc.isDirty);
+
+    // Output information about the analysis
+    outputInformation(outputChannel, spinner, fileName, trigger);
+    executePhpStan(config, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath, doc, diagnostics, spinner, fileName);
+}
+
+function outputInformation(outputChannel: vscode.OutputChannel, spinner: vscode.StatusBarItem, fileName: string, trigger: String | null = null) {
+    spinner.show();
+    spinner.text = `${spinnerLabel} Analyzing 🔍`;
+
+    if (trigger) {
+        //
     }
 
-    // Update tracking variables
-    lastAnalyzedFile = fileName;
-    lastAnalyzedTime = currentTime;
+    outputChannel.appendLine(`[PHPStan] Analyzing: ${fileName} 🔍`);
+}
 
-    // Update or create linted file entry
-    lintedFiles.set(fileName, {
-        fileName,
-        lastLinted: currentTime,
-        lastModified: doc.isDirty ? currentTime : (lintedFile?.lastModified || 0)
-    });
-
+function executePhpStan(
+    config: vscode.WorkspaceConfiguration,
+    workspaceFolder: string | undefined,
+    doc: vscode.TextDocument,
+    diagnostics: vscode.DiagnosticCollection,
+    spinner: vscode.StatusBarItem,
+    fileName: string
+) {
     const binaryPath = config.get<string>('binaryPath') || 'phpstan';
     const configPath = config.get<string>('config') || '';
     const extraArgs = config.get<string>('args') || '';
     const errorFormat = config.get<string>('errorFormat') || 'json';
     const command = config.get<string>('command') || `${binaryPath} analyse ${fileName} --error-format=${errorFormat} ${configPath ? '--configuration ' + configPath : ''} ${extraArgs}`;
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-    spinner.show();
-    spinner.text = `${spinnerLabel} Analyzing 🔍`;
-
-    outputChannel.clear();
-
-    if (trigger) {
-        outputChannel.appendLine(`[PHPStan] ${trigger}`);
-    }
-
-    outputChannel.appendLine(`[PHPStan] Analyzing: ${fileName} 🔍`);
 
     cp.exec(command, { cwd: workspaceFolder }, (err, stdout, stderr) => {
         if (err && stdout) {
@@ -71,7 +56,7 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
                 const fileDiagnostics: vscode.Diagnostic[] = [];
                 const fileMessages = results.files?.[fileName]?.messages ?? [];
 
-                outputChannel.appendLine(`[PHPStan] Finished analyzing ${fileName}. Found ${fileMessages.length} messages ` + (fileMessages.length === 0 ? '✅' : '❌'));
+                outputChannel.appendLine(`[PHPStan] Finished analyzing ${fileName}. ` + (fileMessages.length === 0 ? '✅' : '❌'));
                 // Only clear diagnostics for the current file, not all files
                 diagnostics.delete(doc.uri);
 
@@ -115,16 +100,11 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
         setTimeout(() => {
             spinner.hide();
         }, 1000);
-    });
-}
+    });}
 
 // Function to mark a file as modified
 export function markFileAsModified(fileName: string) {
-    const lintedFile = lintedFiles.get(fileName);
-    if (lintedFile) {
-        lintedFile.lastModified = Date.now();
-        lintedFiles.set(fileName, lintedFile);
-    }
+    LintedFiles.markFileAsModified(fileName);
 }
 
 // Add this function to register the document change event
