@@ -2,43 +2,96 @@ import * as vscode from 'vscode';
 import { runPhpStan } from './phpstanRunner';
 
 export function activate(context: vscode.ExtensionContext) {
-    vscode.window.showInformationMessage('🔍 PHPStan launched', { modal: false });
+    // Create a status bar item with a spinner
+    const spinner = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 1);
+    spinner.text = '';
+
+    context.subscriptions.push(spinner);
 
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('phpstan');
     context.subscriptions.push(diagnosticCollection);
 
     const config = vscode.workspace.getConfiguration('phpstan');
 
+    // Run PHPStan on the active editor when the extension is activated
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor && activeEditor.document.languageId === 'php') {
+        runPhpStan(spinner, activeEditor.document, diagnosticCollection, config);
+    }
+
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument(doc => {
-            if (doc.languageId === 'php') {
-                runPhpStan(doc, diagnosticCollection, config);
+            // Only run PHPStan if the document is PHP and not being peeked
+            if (doc.languageId === 'php' && !isPeeking(doc)) {
+                runPhpStan(spinner, doc, diagnosticCollection, config);
             }
         })
     );
 
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument(doc => {
-            if (doc.languageId === 'php') {
-                runPhpStan(doc, diagnosticCollection, config);
+            // Only run PHPStan if the document is PHP and not being peeked
+            if (doc.languageId === 'php' && !isPeeking(doc)) {
+                runPhpStan(spinner, doc, diagnosticCollection, config);
             }
         })
     );
 
-    // Run for already open documents
-    vscode.workspace.textDocuments.forEach(doc => {
-        if (doc.languageId === 'php') {
-            runPhpStan(doc, diagnosticCollection, config);
-        }
-    });
+    // Also run when the active editor changes
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor && editor.document.languageId === 'php') {
+                runPhpStan(spinner, editor.document, diagnosticCollection, config);
+            }
+        })
+    );
+
+    // Add a handler for language ID changes
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(event => {
+            // Check if the language ID has changed to PHP
+            if (event.document.languageId === 'php' && !isPeeking(event.document)) {
+                // Only run if this is the active document
+                const activeEditor = vscode.window.activeTextEditor;
+                if (activeEditor && activeEditor.document === event.document) {
+                    runPhpStan(spinner, event.document, diagnosticCollection, config);
+                }
+            }
+        })
+    );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('phpstan-inline.analyze', () => {
             const editor = vscode.window.activeTextEditor;
 
             if (editor && editor.document.languageId === 'php') {
-                runPhpStan(editor.document, diagnosticCollection, config);
+                runPhpStan(spinner, editor.document, diagnosticCollection, config);
             }
         })
     );
+
+    // Helper function to check if a document is being peeked
+    function isPeeking(document: vscode.TextDocument): boolean {
+        // Check various schemes that might indicate peeking
+        const peekSchemes = ['vscode-peek', 'peek-preview', 'gitlens-git', 'git'];
+
+        // Check if the document URI scheme indicates it's being peeked
+        if (peekSchemes.includes(document.uri.scheme)) {
+            return true;
+        }
+
+        // Check if the document is temporary (often the case with peek)
+        if (document.uri.path.includes('/.peek-')) {
+            return true;
+        }
+
+        // Check if the document is in the active editor (not being peeked)
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor && activeEditor.document === document) {
+            return false;
+        }
+
+        // If we can't determine for sure, assume it's being peeked
+        return true;
+    }
 }
