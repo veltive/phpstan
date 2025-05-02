@@ -8,7 +8,7 @@ const spinnerLabel = "$(sync~spin) PHPStan:";
 let lastAnalyzedFile: string | null = null;
 let lastAnalyzedTime: number = 0;
 
-export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocument, diagnostics: vscode.DiagnosticCollection, config: vscode.WorkspaceConfiguration) {
+export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocument, diagnostics: vscode.DiagnosticCollection, config: vscode.WorkspaceConfiguration, trigger: String | null = null) {
     const currentTime = Date.now();
 
     // Skip if this is the same file and was analyzed less than 3 seconds ago
@@ -30,7 +30,13 @@ export function runPhpStan(spinner: vscode.StatusBarItem, doc: vscode.TextDocume
 
     spinner.show();
     spinner.text = `${spinnerLabel} Analyzing 🔍`;
+
     outputChannel.clear();
+
+    if (trigger) {
+        outputChannel.appendLine(`[PHPStan] ${trigger}`);
+    }
+
     outputChannel.appendLine(`[PHPStan] Analyzing: ${doc.fileName} 🔍`);
 
     cp.exec(command, { cwd: workspaceFolder }, (err, stdout, stderr) => {

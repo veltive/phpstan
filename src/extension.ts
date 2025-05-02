@@ -13,59 +13,48 @@ export function activate(context: vscode.ExtensionContext) {
 
     const config = vscode.workspace.getConfiguration('phpstan');
 
-    // Run PHPStan on the active editor when the extension is activated
+    // Activating extension
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor && activeEditor.document.languageId === 'php') {
         runPhpStan(spinner, activeEditor.document, diagnosticCollection, config);
     }
 
+    // Opening a document
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument(doc => {
             // Only run PHPStan if the document is PHP and not being peeked
             if (doc.languageId === 'php' && !isPeeking(doc)) {
-                runPhpStan(spinner, doc, diagnosticCollection, config);
+                runPhpStan(spinner, doc, diagnosticCollection, config, 'Opened document');
             }
         })
     );
 
+    // Active editor changed
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor && editor.document.languageId === 'php') {
+                runPhpStan(spinner, editor.document, diagnosticCollection, config, 'Changed active editor');
+            }
+        })
+    );
+
+    // Saving a document
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument(doc => {
             // Only run PHPStan if the document is PHP and not being peeked
             if (doc.languageId === 'php' && !isPeeking(doc)) {
-                runPhpStan(spinner, doc, diagnosticCollection, config);
+                runPhpStan(spinner, doc, diagnosticCollection, config, 'Saved document');
             }
         })
     );
 
-    // Also run when the active editor changes
-    context.subscriptions.push(
-        vscode.window.onDidChangeActiveTextEditor(editor => {
-            if (editor && editor.document.languageId === 'php') {
-                runPhpStan(spinner, editor.document, diagnosticCollection, config);
-            }
-        })
-    );
-
-    // Add a handler for language ID changes
-    context.subscriptions.push(
-        vscode.workspace.onDidChangeTextDocument(event => {
-            // Check if the language ID has changed to PHP
-            if (event.document.languageId === 'php' && !isPeeking(event.document)) {
-                // Only run if this is the active document
-                const activeEditor = vscode.window.activeTextEditor;
-                if (activeEditor && activeEditor.document === event.document) {
-                    runPhpStan(spinner, event.document, diagnosticCollection, config);
-                }
-            }
-        })
-    );
-
+    // Command to manually trigger PHPStan analysis
     context.subscriptions.push(
         vscode.commands.registerCommand('phpstan-inline.analyze', () => {
             const editor = vscode.window.activeTextEditor;
 
             if (editor && editor.document.languageId === 'php') {
-                runPhpStan(spinner, editor.document, diagnosticCollection, config);
+                runPhpStan(spinner, editor.document, diagnosticCollection, config, 'Manually triggered analysis');
             }
         })
     );
