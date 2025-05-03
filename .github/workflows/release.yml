@@ -15,6 +15,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Release VS Code Extension
-        uses: veltive/actions/actions/vscode-extensions/release@master
+        uses: veltive/actions/vscode-extensions/release@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
