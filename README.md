@@ -1,1 +1,6 @@
-Package gets built when pushing tag: git tag v0.1.0 && git push origin v0.1.0
+# Release 🚀
+
+Check https://github.com/veltive/phpstan/releases
+```bash
+git tag vX.X.X && git push origin vX.X.X
+```
