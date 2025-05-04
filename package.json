@@ -1,9 +1,9 @@
 {
   "name": "phpstan",
   "displayName": "Phpstan",
-  "description": "Phpstan inline for VS Code. This extension is still in development.",
-  "version": "0.0.1",
-  "publisher": "Patrick Veltrop",
+  "description": "Phpstan inline error provider for VS Code.",
+  "version": "0.1.5",
+  "publisher": "veltive",
   "engines": {
     "vscode": "^1.99.0"
   },
