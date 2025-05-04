@@ -3,7 +3,7 @@ import { runPhpStan, registerDocumentChangeListener } from './phpstanRunner';
 
 export function activate(context: vscode.ExtensionContext) {
     // Create a status bar item with a spinner
-    const spinner = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
+    const spinner = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 1);
     spinner.text = '';
 
     context.subscriptions.push(spinner);
